@@ -9,7 +9,9 @@ import androidx.core.app.ActivityCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.preonboarding.locationhistory.data.repository.LocationRepository
+import com.preonboarding.locationhistory.data.repository.TimerRepository
 import com.preonboarding.locationhistory.data.source.local.entity.LocationEntity
+import com.preonboarding.locationhistory.util.Alarm
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.coroutineScope
@@ -24,7 +26,8 @@ import java.util.*
 class LocationWorker @AssistedInject constructor(
     @Assisted private val appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val timerRepository: TimerRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -32,6 +35,9 @@ class LocationWorker @AssistedInject constructor(
             if (ActivityCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Result.failure()
             } else {
+                timerRepository.getDuration().collect { timer ->
+                    Alarm.create(appContext, timer)
+                }
                 val manager: LocationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
                 val currentLocation: Location? = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                 val latitude = currentLocation?.latitude
